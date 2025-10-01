@@ -21,7 +21,7 @@ const VideoCallApp = () => {
   const isGettingMediaRef = useRef(false);
   const isInitiatorRef = useRef(false);
 
-  // IMPORTANT: Update this to your server URL
+  
   const SOCKET_SERVER = import.meta.env.VITE_SERVER_URL || 'http://localhost:3007';
 
   const iceServers = {
@@ -32,23 +32,23 @@ const VideoCallApp = () => {
   };
 
   useEffect(() => {
-    // Initialize Socket.io connection
+ 
     socketRef.current = io(SOCKET_SERVER, {
       transports: ['websocket', 'polling']
     });
 
     socketRef.current.on('connect', () => {
-      console.log('✅ Connected to signaling server');
+      console.log('Connected to signaling server');
       setConnectionStatus('connected');
     });
 
     socketRef.current.on('disconnect', () => {
-      console.log('❌ Disconnected from signaling server');
+      console.log('Disconnected from signaling server');
       setConnectionStatus('disconnected');
     });
 
     socketRef.current.on('joined-room', (room) => {
-      console.log('✅ Joined room:', room);
+      console.log(' Joined room:', room);
       setIsInRoom(true);
     });
 
@@ -59,23 +59,22 @@ const VideoCallApp = () => {
     });
 
     socketRef.current.on('other-user', (userId) => {
-      console.log('👤 Other user in room:', userId, '- I will create the offer');
+      console.log(' Other user in room:', userId);
       isInitiatorRef.current = true;
       createPeerConnection(userId);
-      // Small delay to ensure tracks are properly added
       setTimeout(() => {
         createOffer(userId);
       }, 100);
     });
 
     socketRef.current.on('user-joined', (userId) => {
-      console.log('👤 New user joined:', userId, '- I will wait for offer');
+      console.log(' New user joined:', userId);
       isInitiatorRef.current = false;
       createPeerConnection(userId);
     });
 
     socketRef.current.on('offer', async ({ offer, from }) => {
-      console.log('📥 Received offer from:', from);
+      console.log(' Received offer from:', from);
       if (!peerConnectionRef.current) {
         console.log('Creating peer connection to handle offer');
         createPeerConnection(from);
@@ -83,47 +82,47 @@ const VideoCallApp = () => {
       
       try {
         await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(offer));
-        console.log('✅ Remote description set (offer)');
+        console.log(' Remote description set (offer)');
         
         const answer = await peerConnectionRef.current.createAnswer();
         await peerConnectionRef.current.setLocalDescription(answer);
-        console.log('✅ Local description set (answer)');
+        console.log(' Local description set (answer)');
         
         socketRef.current.emit('answer', { answer, to: from });
-        console.log('📤 Answer sent to:', from);
+        console.log(' Answer sent to:', from);
       } catch (error) {
-        console.error('❌ Error handling offer:', error);
+        console.error(' Error handling offer:', error);
       }
     });
 
     socketRef.current.on('answer', async ({ answer, from }) => {
-      console.log('📥 Received answer from:', from);
+      console.log('Received answer from:', from);
       try {
         if (peerConnectionRef.current.signalingState === 'have-local-offer') {
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-          console.log('✅ Remote description set (answer)');
+          console.log(' Remote description set (answer)');
         } else {
-          console.warn('⚠️ Unexpected signaling state:', peerConnectionRef.current.signalingState);
+          console.warn(' Unexpected signaling state:', peerConnectionRef.current.signalingState);
         }
       } catch (e) {
-        console.error('❌ Error setting remote answer:', e);
+        console.error('Error setting remote answer:', e);
       }
     });
 
     socketRef.current.on('ice-candidate', async ({ candidate, from }) => {
-      console.log('🧊 Received ICE candidate from:', from);
+      console.log(' Received ICE candidate from:', from);
       if (peerConnectionRef.current) {
         try {
           await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-          console.log('✅ ICE candidate added');
+          console.log(' ICE candidate added');
         } catch (error) {
-          console.error('❌ Error adding ICE candidate:', error);
+          console.error(' Error adding ICE candidate:', error);
         }
       }
     });
 
     socketRef.current.on('user-left', () => {
-      console.log('👋 User left the room');
+      console.log('User left the room');
       handlePeerDisconnect();
     });
 
@@ -141,34 +140,32 @@ const VideoCallApp = () => {
   }, []);
 
   const createPeerConnection = (userId) => {
-    console.log('🔧 Creating peer connection for user:', userId);
+    console.log('Creating peer connection for user:', userId);
     
     if (peerConnectionRef.current) {
-      console.log('⚠️ Closing existing peer connection');
       peerConnectionRef.current.close();
     }
 
     const peerConnection = new RTCPeerConnection(iceServers);
     peerConnectionRef.current = peerConnection;
 
-    // Add local tracks if available
+
     const streamToUse = localStream || originalStreamRef.current;
     if (streamToUse) {
       const tracks = streamToUse.getTracks();
-      console.log(`➕ Adding ${tracks.length} local tracks to peer connection`);
+      console.log(` Adding ${tracks.length} local tracks to peer connection`);
       
       tracks.forEach(track => {
-        console.log(`  ➕ Adding ${track.kind} track (enabled: ${track.enabled})`);
+        console.log(`Adding ${track.kind} track (enabled: ${track.enabled})`);
         peerConnection.addTrack(track, streamToUse);
       });
     } else {
-      console.warn('⚠️ No local stream available when creating peer connection');
+      console.warn(' No local stream available when creating peer connection');
     }
 
-    // Handle incoming tracks from remote peer
+  
     peerConnection.ontrack = (event) => {
       const stream = event.streams[0];
-      console.log('🎥 RECEIVED REMOTE TRACK!');
       console.log('  Stream ID:', stream.id);
       console.log('  Tracks:', stream.getTracks().map(t => `${t.kind} (${t.enabled ? 'enabled' : 'disabled'})`).join(', '));
       
@@ -177,56 +174,53 @@ const VideoCallApp = () => {
       setConnectionStatus('connected');
       
       if (remoteVideoRef.current) {
-        console.log('📺 Setting remote stream to video element');
         remoteVideoRef.current.srcObject = stream;
         
         remoteVideoRef.current.onloadedmetadata = () => {
-          console.log('✅ Remote video metadata loaded');
           remoteVideoRef.current.play()
-            .then(() => console.log('▶️ Remote video playing'))
-            .catch(e => console.warn('⚠️ Remote video play blocked:', e.message));
+            .then(() => console.log(' Remote video playing'))
+            .catch(e => console.warn(' Remote video play blocked:', e.message));
         };
       }
     };
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log('🧊 Sending ICE candidate to:', userId);
+        console.log(' Sending ICE candidate to:', userId);
         socketRef.current.emit('ice-candidate', {
           candidate: event.candidate,
           to: userId,
         });
       } else {
-        console.log('🧊 All ICE candidates sent');
+        console.log(' All ICE candidates sent');
       }
     };
 
     peerConnection.oniceconnectionstatechange = () => {
-      console.log('🧊 ICE connection state:', peerConnection.iceConnectionState);
+      console.log(' ICE connection state:', peerConnection.iceConnectionState);
     };
 
     peerConnection.onconnectionstatechange = () => {
-      console.log('🔗 Connection state:', peerConnection.connectionState);
+      console.log(' Connection state:', peerConnection.connectionState);
       setConnectionStatus(peerConnection.connectionState);
 
       if (peerConnection.connectionState === 'connected') {
-        console.log('✅ PEER CONNECTION ESTABLISHED!');
+        console.log(' PEER CONNECTION ESTABLISHED!');
       }
 
       if (peerConnection.connectionState === 'disconnected' || 
           peerConnection.connectionState === 'failed') {
-        console.warn('⚠️ Peer connection lost');
         handlePeerDisconnect();
       }
     }
 
     peerConnection.onnegotiationneeded = async () => {
-      console.log('🔄 Negotiation needed (initiator:', isInitiatorRef.current, ')');
+      console.log(' Negotiation needed (initiator:', isInitiatorRef.current, ')');
       if (isInitiatorRef.current && peerConnectionRef.current) {
         try {
           await createOffer(userId);
         } catch (e) {
-          console.error('❌ Error during negotiation:', e);
+          console.error(' Error during negotiation:', e);
         }
       }
     };
@@ -236,23 +230,22 @@ const VideoCallApp = () => {
 
   const createOffer = async (userId) => {
     if (!peerConnectionRef.current) {
-      console.error('❌ Cannot create offer: no peer connection');
+      console.error(' Cannot create offer: no peer connection');
       return;
     }
 
     try {
-      console.log('📝 Creating offer for user:', userId);
+      console.log(' Creating offer for user:', userId);
       const offer = await peerConnectionRef.current.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true
       });
       
-      console.log('📝 Setting local description');
       await peerConnectionRef.current.setLocalDescription(offer);
       
-      console.log('📤 Sending offer to:', userId);
+      console.log('Sending offer to:', userId);
       socketRef.current.emit('offer', { offer, to: userId });
-      console.log('✅ Offer sent successfully');
+      console.log(' Offer sent successfully');
     } catch (error) {
       console.error('❌ Error creating offer:', error);
     }
@@ -260,16 +253,15 @@ const VideoCallApp = () => {
 
   const startWebcam = async () => {
     if (isGettingMediaRef.current) {
-      console.log('⏳ Already getting media, please wait...');
+      console.log(' Already getting media, please wait...');
       return;
     }
     
     isGettingMediaRef.current = true;
-    console.log('🎥 Starting webcam...');
     
     try {
       if (localStream) {
-        console.log('🛑 Stopping existing stream');
+        console.log(' Stopping existing stream');
         localStream.getTracks().forEach(t => t.stop());
       }
 
@@ -281,10 +273,10 @@ const VideoCallApp = () => {
         audio: true 
       };
       
-      console.log('📷 Requesting media devices...');
+      console.log(' Requesting media devices...');
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
-      console.log('✅ Got media stream with tracks:', 
+      console.log(' Got media stream with tracks:', 
         stream.getTracks().map(t => t.kind).join(', '));
       
       setLocalStream(stream);
@@ -292,27 +284,24 @@ const VideoCallApp = () => {
 
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
-        console.log('📺 Local stream set to video element');
+        console.log(' Local stream set to video element');
       }
 
-      // If peer connection exists, add tracks
       if (peerConnectionRef.current) {
-        console.log('🔄 Adding tracks to existing peer connection');
+        console.log(' Adding tracks to existing peer connection');
         stream.getTracks().forEach(track => {
           const sender = peerConnectionRef.current
             .getSenders()
             .find(s => s.track && s.track.kind === track.kind);
           if (sender) {
             sender.replaceTrack(track);
-            console.log('🔄 Replaced', track.kind, 'track');
+            console.log(' Replaced', track.kind, 'track');
           } else {
             peerConnectionRef.current.addTrack(track, stream);
-            console.log('➕ Added', track.kind, 'track');
+            console.log(' Added', track.kind, 'track');
           }
         });
       }
-      
-      console.log('✅ Webcam started successfully');
     } catch (error) {
       console.error('❌ Error accessing webcam:', error);
       if (error.name === 'NotAllowedError') {
@@ -332,7 +321,7 @@ const VideoCallApp = () => {
   const generateRandomRoomId = () => {
     const randomId = Math.random().toString(36).substring(2, 10);
     setRoomId(randomId);
-    console.log('🎲 Generated room ID:', randomId);
+    console.log(' Generated room ID:', randomId);
   };
 
   const joinRoom = async () => {
@@ -342,17 +331,17 @@ const VideoCallApp = () => {
     }
 
     if (!localStream) {
-      console.log('📷 Starting webcam before joining...');
+      console.log(' Starting webcam before joining...');
       await startWebcam();
     }
 
-    console.log('🚪 Joining room:', roomId);
+    console.log('Joining room:', roomId);
     socketRef.current.emit('join-room', roomId);
     setConnectionStatus('connecting');
   };
 
   const leaveRoom = () => {
-    console.log('👋 Leaving room:', roomId);
+    console.log(' Leaving room:', roomId);
     
     if (roomId) {
       socketRef.current.emit('leave-room', roomId);
@@ -374,7 +363,7 @@ const VideoCallApp = () => {
   };
 
   const handlePeerDisconnect = () => {
-    console.log('🔌 Handling peer disconnect');
+    console.log(' Handling peer disconnect');
     setIsConnected(false);
     setRemoteStream(null);
 
@@ -411,7 +400,7 @@ const VideoCallApp = () => {
   const toggleScreenShare = async () => {
     try {
       if (!isScreenSharing) {
-        console.log('🖥️ Starting screen share...');
+        console.log(' Starting screen share...');
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
           video: { cursor: 'always' },
           audio: false,
@@ -426,7 +415,6 @@ const VideoCallApp = () => {
 
           if (sender) {
             await sender.replaceTrack(screenTrack);
-            console.log('✅ Screen track replaced');
           }
         }
 
@@ -435,7 +423,6 @@ const VideoCallApp = () => {
         }
 
         screenTrack.onended = () => {
-          console.log('🛑 Screen share ended');
           stopScreenShare();
         };
 
@@ -444,7 +431,7 @@ const VideoCallApp = () => {
         stopScreenShare();
       }
     } catch (error) {
-      console.error('❌ Error sharing screen:', error);
+      console.error(' Error sharing screen:', error);
       if (error.name !== 'NotAllowedError') {
         alert('Failed to share screen: ' + error.message);
       }
@@ -452,7 +439,7 @@ const VideoCallApp = () => {
   };
 
   const stopScreenShare = () => {
-    console.log('🛑 Stopping screen share');
+    console.log('Stopping screen share');
     if (originalStreamRef.current && peerConnectionRef.current) {
       const videoTrack = originalStreamRef.current.getVideoTracks()[0];
       const sender = peerConnectionRef.current
