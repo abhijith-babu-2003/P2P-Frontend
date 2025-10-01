@@ -84,8 +84,12 @@ const VideoCallApp = () => {
   };
 
   const handleAnswer = async ({ answer }) => {
-    if (peerConnectionRef.current.signalingState === 'have-local-offer') {
-      await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+    try {
+      if (peerConnectionRef.current && peerConnectionRef.current.signalingState === 'have-local-offer') {
+        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+      }
+    } catch (e) {
+      console.error('Error handling answer:', e);
     }
   };
 
