@@ -59,7 +59,7 @@ const VideoCallApp = () => {
     socketRef.current.on('offer', async ({ offer, from }) => {
       if (!peerConnectionRef.current) createPeerConnection(from);
       try {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(offer));
+        await peerConnectionRef.current.setRemoteDescription(offer);
         const answer = await peerConnectionRef.current.createAnswer();
         await peerConnectionRef.current.setLocalDescription(answer);
         socketRef.current.emit('answer', { answer, to: from });
@@ -70,13 +70,13 @@ const VideoCallApp = () => {
 
     socketRef.current.on('answer', async ({ answer }) => {
       if (peerConnectionRef.current.signalingState === 'have-local-offer') {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+        await peerConnectionRef.current.setRemoteDescription(answer);
       }
     });
 
     socketRef.current.on('ice-candidate', async ({ candidate }) => {
       if (peerConnectionRef.current) {
-        try { await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate)); }
+        try { await peerConnectionRef.current.addIceCandidate(candidate); }
         catch (error) { console.error('Error adding ICE candidate:', error); }
       }
     });
@@ -132,7 +132,7 @@ const VideoCallApp = () => {
 
   const createOffer = async (userId) => {
     if (!peerConnectionRef.current) return;
-    const offer = await peerConnectionRef.current.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+    const offer = await peerConnectionRef.current.createOffer();
     await peerConnectionRef.current.setLocalDescription(offer);
     socketRef.current.emit('offer', { offer, to: userId });
   };
