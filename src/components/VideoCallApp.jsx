@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Video, VideoOff, Mic, MicOff, PhoneOff, Monitor, Users } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, PhoneOff, Monitor, Users, Copy, Check } from 'lucide-react';
 import io from 'socket.io-client';
 
 const VideoCallApp = () => {
@@ -12,6 +12,7 @@ const VideoCallApp = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -89,6 +90,7 @@ const VideoCallApp = () => {
       peerConnectionRef.current?.close();
     };
   }, []);
+
 
   const createPeerConnection = (userId) => {
     if (peerConnectionRef.current) peerConnectionRef.current.close();
@@ -221,111 +223,190 @@ const VideoCallApp = () => {
 
   const copyRoomId = () => {
     navigator.clipboard.writeText(roomId);
-    alert('Room ID copied!');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
   };
 
-  const getStatusColor = () => {
-    switch (connectionStatus) {
-      case 'connected': return 'bg-green-500';
-      case 'connecting': return 'bg-yellow-500';
-      case 'failed': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
+  // Signal-bar status indicator instead of a plain dot — reads like a
+  // real connection-quality meter rather than a decorative badge.
+  const statusMeta = {
+    connected: { bars: 3, label: 'Connected', color: '#2DD4BF' },
+    connecting: { bars: 2, label: 'Connecting', color: '#F5A524' },
+    failed: { bars: 0, label: 'Connection failed', color: '#F0575B' },
+    disconnected: { bars: 0, label: 'Disconnected', color: '#5B6472' },
   };
+  const currentStatus = statusMeta[connectionStatus] || statusMeta.disconnected;
+
+  const SignalBars = ({ active, color }) => (
+    <div className="flex items-end gap-[2px] h-3.5">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="w-[3px] rounded-sm transition-colors"
+          style={{
+            height: `${(i + 1) * 4 + 2}px`,
+            backgroundColor: i < active ? color : '#333B47',
+          }}
+        />
+      ))}
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4 md:p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 flex items-center justify-center gap-3">
-            <Video className="w-8 h-8 md:w-10 md:h-10" /> WebRTC Video Call
-          </h1>
-          <div className="flex items-center justify-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${getStatusColor()}`}></div>
-            <span className="text-gray-300 capitalize">{connectionStatus}</span>
-          </div>
-          {isInRoom && (
-            <div className="mt-2 text-gray-300 flex flex-wrap justify-center gap-2">
-              <span className="font-medium">Room ID:</span>
-              <span className="font-bold">{roomId}</span>
-              <button onClick={copyRoomId} className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm">Copy</button>
+    <div className="min-h-screen bg-[#0B0D12] p-4 md:p-6 font-sans" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <div className="max-w-6xl mx-auto">
+
+        {/* Top bar */}
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#14B8A6]/15 flex items-center justify-center">
+              <Video className="w-4 h-4 text-[#2DD4BF]" />
             </div>
-          )}
+            <div>
+              <h1 className="text-[15px] font-semibold text-[#E8EAED] leading-none">Classroom Session</h1>
+              <p className="text-[12px] text-[#5B6472] mt-1 leading-none">Live video call</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 bg-[#161A21] border border-[#252B35] rounded-full pl-3 pr-3.5 py-1.5">
+            <SignalBars active={currentStatus.bars} color={currentStatus.color} />
+            <span className="text-[12px] font-medium" style={{ color: currentStatus.color }}>
+              {currentStatus.label}
+            </span>
+          </div>
         </div>
 
-     
+        {/* Join panel */}
         {!isInRoom && (
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 md:p-6 mb-6 border border-white/20">
+          <div className="bg-[#12151B] rounded-2xl p-5 md:p-6 mb-6 border border-[#22262F]">
+            <p className="text-[13px] text-[#5B6472] mb-3 tracking-wide uppercase font-medium">Session code</p>
             <div className="flex flex-col md:flex-row gap-3">
               <input
                 type="text"
-                placeholder="Enter Room ID"
+                placeholder="Enter session code"
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value)}
-                className="flex-1 px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="flex-1 px-4 py-3 bg-[#0B0D12] border border-[#252B35] rounded-lg text-[#E8EAED] placeholder-[#4A5261] font-mono tracking-wide text-sm focus:outline-none focus:ring-2 focus:ring-[#14B8A6]/50 focus:border-[#14B8A6]/50"
               />
-              <button onClick={generateRandomRoomId} className="px-4 md:px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">Generate Room ID</button>
+              <button
+                onClick={generateRandomRoomId}
+                className="px-4 md:px-5 py-3 bg-[#1A1F27] hover:bg-[#20262F] border border-[#252B35] text-[#C7CCD4] rounded-lg font-medium text-sm transition-colors"
+              >
+                Generate code
+              </button>
               <button
                 onClick={localStream ? joinRoom : startWebcam}
-                className={`px-4 md:px-6 py-3 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${localStream ? 'bg-green-600 hover:bg-green-700' : 'bg-purple-600 hover:bg-purple-700'}`}
+                className="px-4 md:px-6 py-3 bg-[#14B8A6] hover:bg-[#0F9C8D] text-[#04120F] rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2"
               >
-                {localStream ? <Users className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-                {localStream ? 'Join Room' : 'Start Webcam'}
+                {localStream ? <Users className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                {localStream ? 'Join session' : 'Start camera'}
               </button>
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6">
+        {isInRoom && (
+          <div className="flex items-center gap-2 mb-4 text-[13px]">
+            <span className="text-[#5B6472]">Session code</span>
+            <span className="font-mono text-[#C7CCD4] bg-[#161A21] border border-[#252B35] px-2.5 py-1 rounded-md tracking-wide">{roomId}</span>
+            <button
+              onClick={copyRoomId}
+              className="flex items-center gap-1 text-[#5B6472] hover:text-[#C7CCD4] transition-colors px-1.5 py-1"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-[#2DD4BF]" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        )}
 
-          <div className="relative bg-black rounded-2xl overflow-hidden shadow-2xl aspect-video">
+        {/* Video grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+
+          <div className="relative bg-[#0E1015] rounded-xl overflow-hidden border border-[#22262F] aspect-video">
             <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-            <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4 bg-black/60 backdrop-blur-sm px-2 md:px-3 py-1 rounded-lg">
-              <span className="text-white font-medium">You</span>
+            <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-[#0B0D12]/80 backdrop-blur-sm px-2.5 py-1 rounded-md border border-white/5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4BF]" />
+              <span className="text-[#E8EAED] text-[12px] font-medium">You</span>
             </div>
+            {isMuted && (
+              <div className="absolute top-3 left-3 bg-[#F0575B] p-1.5 rounded-md">
+                <MicOff className="w-3.5 h-3.5 text-white" />
+              </div>
+            )}
             {isVideoOff && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-                <VideoOff className="w-16 h-16 text-gray-400" />
+              <div className="absolute inset-0 flex items-center justify-center bg-[#12151B]">
+                <VideoOff className="w-10 h-10 text-[#333B47]" />
               </div>
             )}
           </div>
 
-      
-          <div className="relative bg-black rounded-2xl overflow-hidden shadow-2xl aspect-video">
+          <div className="relative bg-[#0E1015] rounded-xl overflow-hidden border border-[#22262F] aspect-video">
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
             {!isConnected && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-center p-4">
-                <Users className="w-16 h-16 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-400 font-medium">Waiting for peer...</p>
-                <p className="text-gray-500 text-sm mt-1">{isInRoom ? 'Share room ID with someone to connect' : 'Join a room to start'}</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                <div className="w-12 h-12 rounded-full bg-[#161A21] border border-[#22262F] flex items-center justify-center mb-3">
+                  <Users className="w-5 h-5 text-[#5B6472]" />
+                </div>
+                <p className="text-[#C7CCD4] font-medium text-[13px]">Waiting for peer</p>
+                <p className="text-[#4A5261] text-[12px] mt-1">
+                  {isInRoom ? 'Share the session code to connect' : 'Join a session to start'}
+                </p>
               </div>
             )}
             {isConnected && (
-              <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4 bg-black/60 backdrop-blur-sm px-2 md:px-3 py-1 rounded-lg">
-                <span className="text-white font-medium">Peer</span>
+              <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-[#0B0D12]/80 backdrop-blur-sm px-2.5 py-1 rounded-md border border-white/5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4BF]" />
+                <span className="text-[#E8EAED] text-[12px] font-medium">Peer</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Controls */}
+        {/* Floating control dock */}
         {localStream && (
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 md:p-6 border border-white/20">
-            <div className="flex flex-wrap justify-center gap-3 md:gap-4">
-              <button onClick={toggleMute} className={`px-4 md:px-6 py-3 rounded-lg font-medium transition-all flex items-center gap-2 ${isMuted ? 'bg-red-600 hover:bg-red-700' : 'bg-white/20 hover:bg-white/30'} text-white`}>
-                {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />} {isMuted ? 'Unmute' : 'Mute'}
+          <div className="flex justify-center">
+            <div className="inline-flex items-center gap-2 bg-[#12151B]/95 backdrop-blur-md border border-[#22262F] rounded-full px-3 py-2.5 shadow-2xl">
+              <button
+                onClick={toggleMute}
+                title={isMuted ? 'Unmute' : 'Mute'}
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${
+                  isMuted ? 'bg-[#F0575B] hover:bg-[#D94A4E]' : 'bg-[#1A1F27] hover:bg-[#20262F]'
+                }`}
+              >
+                {isMuted ? <MicOff className="w-4.5 h-4.5 text-white" /> : <Mic className="w-4.5 h-4.5 text-[#C7CCD4]" />}
               </button>
-              <button onClick={toggleVideo} className={`px-4 md:px-6 py-3 rounded-lg font-medium transition-all flex items-center gap-2 ${isVideoOff ? 'bg-red-600 hover:bg-red-700' : 'bg-white/20 hover:bg-white/30'} text-white`}>
-                {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />} {isVideoOff ? 'Start Video' : 'Stop Video'}
+
+              <button
+                onClick={toggleVideo}
+                title={isVideoOff ? 'Start video' : 'Stop video'}
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${
+                  isVideoOff ? 'bg-[#F0575B] hover:bg-[#D94A4E]' : 'bg-[#1A1F27] hover:bg-[#20262F]'
+                }`}
+              >
+                {isVideoOff ? <VideoOff className="w-4.5 h-4.5 text-white" /> : <Video className="w-4.5 h-4.5 text-[#C7CCD4]" />}
               </button>
-              <button onClick={toggleScreenShare} className={`px-4 md:px-6 py-3 rounded-lg font-medium transition-all flex items-center gap-2 ${isScreenSharing ? 'bg-blue-600 hover:bg-blue-700' : 'bg-white/20 hover:bg-white/30'} text-white`}>
-                <Monitor className="w-5 h-5" /> {isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
+
+              <button
+                onClick={toggleScreenShare}
+                title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${
+                  isScreenSharing ? 'bg-[#14B8A6] hover:bg-[#0F9C8D]' : 'bg-[#1A1F27] hover:bg-[#20262F]'
+                }`}
+              >
+                <Monitor className={`w-4.5 h-4.5 ${isScreenSharing ? 'text-[#04120F]' : 'text-[#C7CCD4]'}`} />
               </button>
+
               {isInRoom && (
-                <button onClick={leaveRoom} className="px-4 md:px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-all flex items-center gap-2">
-                  <PhoneOff className="w-5 h-5" /> Leave Room
-                </button>
+                <>
+                  <div className="w-px h-6 bg-[#22262F] mx-1" />
+                  <button
+                    onClick={leaveRoom}
+                    title="Leave session"
+                    className="h-11 px-5 rounded-full bg-[#F0575B] hover:bg-[#D94A4E] flex items-center gap-2 transition-colors"
+                  >
+                    <PhoneOff className="w-4 h-4 text-white" />
+                    <span className="text-white text-[13px] font-medium">Leave</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
